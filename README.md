@@ -1,1 +1,1 @@
-# brachistochrone_problem
+# Brachistochrone Problem
