@@ -18,7 +18,7 @@ COLOR_BG = (255, 255, 255)       # White
 COLOR_LINE = (0, 100, 255)      # Blue
 COLOR_CYCLOID = (220, 50, 30)   # Red
 COLOR_TEXT = (10, 10, 10)       # Black
-COLOR_POINT = pygame.Color("#add7ec")      # Point color
+COLOR_POINT = pygame.Color("#add7ec")       # Point color
 COLOR_TITLE = pygame.Color("#3eb7f3")  # Title color
 COLOR_BUTTON_BG = pygame.Color("#7ac8ee") # Button background color
 COLOR_BUTTON_TEXT = pygame.Color("#ffffff") # White text for button
@@ -69,14 +69,18 @@ def calculate_paths(A, B):
     else:  # if not vertically aligned - other cases
         a_line = G * dy / L  # acceleration along the line a = g sin(theta) = g * (dy / L)
         t_line = math.sqrt(2 * L / a_line)   # time to fall distance L under acceleration a_line follow the straightline ( d = 0.5*a*t^2 )
-        ratio = dx / dy
+        
+        # Use the absolute horizontal distance for the ratio calculation
+        abs_dx = abs(dx)
+        ratio = abs_dx / dy
+
         try:   # find time for the cycloid path
             theta_b_cycloid = fsolve(
                 lambda th: (th - math.sin(th)) - ratio * (1 - math.cos(th)),
                 math.pi
             )[0]
             r_cycloid = dy / (1 - math.cos(theta_b_cycloid))  # radius of the cycloid
-            t_cycloid = theta_b_cycloid * math.sqrt(r_cycloid / G)  # time for cycloid 
+            t_cycloid = theta_b_cycloid * math.sqrt(r_cycloid / G)  # time for cycloid ( time to travel from 0 to theta_b )
         except (RuntimeError, ValueError):
             return None
 
@@ -84,8 +88,11 @@ def calculate_paths(A, B):
     if np.isinf(r_cycloid):  # check if the r_cycloid is infinite (almost vertical line)
         cycloid_points = line_points  
     else:  # cycloid case
+        # Get the direction (+1 for right, -1 for left)
+        direction = np.sign(dx)
         thetas = np.linspace(0, theta_b_cycloid, 100) # parameter theta along the cycloid
-        cycloid_x = xa + r_cycloid * (thetas - np.sin(thetas))
+        # Apply the direction to the x-component
+        cycloid_x = xa + direction * r_cycloid * (thetas - np.sin(thetas))
         cycloid_y = ya + r_cycloid * (1 - np.cos(thetas))
         cycloid_points = list(zip(cycloid_x, cycloid_y))
         
@@ -345,10 +352,16 @@ def main():
                     else:
                         r = sim_data['cycloid_r']
                         theta_t = sim_time / math.sqrt(r / G)
+                        
+                        # --- MODIFICATION FOR LEFT/RIGHT ---
+                        # Get direction from stored dx
+                        direction = np.sign(sim_data['dx'])
                         pos_cycloid_world = (
-                            point_a_world[0] + r * (theta_t - math.sin(theta_t)),
+                            # Apply the direction to the x-component
+                            point_a_world[0] + direction * r * (theta_t - math.sin(theta_t)),
                             point_a_world[1] + r * (1 - math.cos(theta_t))
                         )
+                        # --- END MODIFICATION ---
                 else:
                     pos_cycloid_world = point_b_world
                     cycloid_finished = True
@@ -444,7 +457,7 @@ def main():
         pygame.draw.rect(screen, COLOR_BUTTON_BG, RESET_BUTTON_RECT, border_radius=10)
         draw_text_centered(screen, "New Simulation", font_button, COLOR_BUTTON_TEXT, RESET_BUTTON_RECT)
 
-        # --- 4. Final Flip ---
+        # Final Flip
         pygame.display.flip()
         clock.tick(60) 
 
